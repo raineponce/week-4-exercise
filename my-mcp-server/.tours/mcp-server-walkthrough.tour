@@ -1,0 +1,102 @@
+{
+  "title": "MCP Server Implementation Walkthrough",
+  "description": "A step-by-step tour of how this MCP server is built — from imports to transport. Follow along to understand every part of the code.",
+  "steps": [
+    {
+      "file": "index.js",
+      "line": 14,
+      "title": "1. Imports",
+      "description": "We pull in everything the server needs:\n\n- **`McpServer`** — the main class that creates an MCP server\n- **`StdioServerTransport`** — lets Claude Code talk to this server over stdin/stdout (no network needed)\n- **`z` from zod** — used to define and validate the shape of each tool's inputs\n- **`fs` and `path`** — Node.js built-ins for writing files to disk (used by `html_to_markdown`)\n\nAll imports use ES module `import` syntax, which is why `package.json` has `\"type\": \"module\"`."
+    },
+    {
+      "file": "index.js",
+      "line": 24,
+      "title": "2. Creating the server",
+      "description": "We create one `McpServer` instance for the whole file. Think of it as the container that holds all of our tools.\n\nThe `name` and `version` are metadata — Claude Code displays them when you list connected MCP servers. You can name yours anything you like."
+    },
+    {
+      "file": "index.js",
+      "line": 38,
+      "title": "3. Registering a tool with server.tool()",
+      "description": "`server.tool()` is how you expose a capability to Claude. It takes four arguments in order:\n\n1. **Tool name** — the identifier Claude uses to call it (`\"format_for_html\"`)\n2. **Description** — a plain-English sentence that helps Claude decide *when* to use this tool\n3. **Input schema** — a Zod object describing the expected arguments\n4. **Handler** — an `async` function that does the actual work\n\nThis same four-argument pattern is used for all three tools in this server."
+    },
+    {
+      "file": "index.js",
+      "line": 46,
+      "title": "4. Input schema with Zod",
+      "description": "The schema object uses **Zod** to declare what inputs each tool expects.\n\n```js\n{ text: z.string().describe(\"...\") }\n```\n\n- `z.string()` means Claude must pass a string value for this argument\n- `.describe()` adds a hint that helps Claude fill in the argument correctly\n\nZod validates the input *before* your handler runs, so you never have to do your own type-checking inside the function."
+    },
+    {
+      "file": "index.js",
+      "line": 55,
+      "title": "5. HTML escaping (format_for_html)",
+      "description": "Before inserting user-supplied text into HTML, we must escape five characters that have special meaning in markup:\n\n| Character | Escaped as |\n|-----------|------------|\n| `&` | `&amp;` |\n| `<` | `&lt;` |\n| `>` | `&gt;` |\n| `\"` | `&quot;` |\n| `'` | `&#39;` |\n\nNote that `&` is replaced **first** — if it were done later, the `&` in `&lt;` would get double-escaped into `&amp;lt;`."
+    },
+    {
+      "file": "index.js",
+      "line": 68,
+      "title": "6. Line-by-line text parser",
+      "description": "We split the input on newlines and walk through each line with a `for` loop, using a `inParagraph` boolean to track whether we're inside an open `<p>` tag.\n\nThree cases are handled:\n\n- **`# Heading` line** → close any open `<p>`, emit `<h1>`–`<h6>`\n- **Empty line** → close any open `<p>` (paragraph break)\n- **Anything else** → open a `<p>` if needed, or add `<br>` between adjacent lines\n\nThis mimics how Markdown-to-HTML converters think about block structure."
+    },
+    {
+      "file": "index.js",
+      "line": 113,
+      "title": "7. Returning results from a tool",
+      "description": "Every MCP tool handler must return an object with a `content` array. Each item in the array has a `type` and a `text`.\n\n```js\nreturn {\n  content: [{ type: \"text\", text: html }]\n};\n```\n\nThe MCP protocol supports other content types too (like `image`), but `\"text\"` is the most common. Claude receives this value and can use it in the conversation."
+    },
+    {
+      "file": "index.js",
+      "line": 133,
+      "title": "8. Tool 2 — slugify_title",
+      "description": "This tool converts a human-readable title into a URL-safe slug.\n\n`\"Hello, World! (2024)\"` → `\"hello-world-2024\"`\n\nBecause the logic fits in a single expression chain, there's no need for a helper function — the handler is short and self-contained. Compare this to `format_for_html`, which needed a loop and helper; choose the right level of complexity for the job."
+    },
+    {
+      "file": "index.js",
+      "line": 143,
+      "title": "9. The slug transformation chain",
+      "description": "Each `.replace()` call handles one concern, applied left-to-right:\n\n```\n\"Héllo, World!\" \n  → \"héllo, world!\"         toLowerCase\n  → \"hello, world!\"          normalize + strip accents\n  → \"hello world\"            remove punctuation\n  → \"hello world\"            trim\n  → \"hello-world\"            spaces → dashes\n  → \"hello-world\"            collapse duplicate dashes\n```\n\nThe `normalize(\"NFD\")` + `\\u0300-\\u036f` regex pair is the standard technique for stripping accent marks without losing the base letter."
+    },
+    {
+      "file": "index.js",
+      "line": 170,
+      "title": "10. Tool 3 — html_to_markdown (two inputs)",
+      "description": "This tool's schema has **two** required inputs:\n\n```js\n{\n  html:  z.string().describe(\"...\"),\n  title: z.string().describe(\"...\")\n}\n```\n\nZod schemas can hold as many fields as you need — just add more `z.string()` (or `z.number()`, `z.boolean()`, etc.) entries to the object. Claude will be prompted to supply all of them before the handler runs."
+    },
+    {
+      "file": "index.js",
+      "line": 186,
+      "title": "11. HTML → Markdown: block elements",
+      "description": "We convert HTML to Markdown using a series of `String.replace()` calls with regex patterns. Order matters — block-level elements are converted first so their inner content is clean when inline elements are processed next.\n\nThe heading loop is a neat trick:\n```js\nfor (let i = 1; i <= 6; i++) {\n  const hashes = \"#\".repeat(i);\n  md = md.replace(/<h${i}...>/, ...);\n}\n```\nInstead of writing six nearly-identical replace calls, we generate the pattern dynamically."
+    },
+    {
+      "file": "index.js",
+      "line": 234,
+      "title": "12. HTML → Markdown: inline elements",
+      "description": "Inline elements are converted after block elements because they can appear *inside* blocks:\n\n| HTML | Markdown |\n|------|----------|\n| `<strong>` / `<b>` | `**bold**` |\n| `<em>` / `<i>` | `*italic*` |\n| `<code>` | `` `code` `` |\n| `<a href=\"url\">text</a>` | `[text](url)` |\n| `<img src=\"url\" alt=\"t\">` | `![t](url)` |\n\nAfter all known tags are handled, a final `replace(/<[^>]+>/g, \"\")` strips any remaining unknown tags."
+    },
+    {
+      "file": "index.js",
+      "line": 277,
+      "title": "13. Slugifying the filename",
+      "description": "Rather than importing `slugify_title` as a separate function (we can't easily call one registered tool from another), we inline the same slug logic here to derive the output filename from the `title` argument.\n\nThis keeps the tool self-contained. If the slug logic ever changes, it would need updating in both places — a good candidate for a shared helper if this server grows."
+    },
+    {
+      "file": "index.js",
+      "line": 290,
+      "title": "14. Saving the file with process.cwd()",
+      "description": "`process.cwd()` returns the **current working directory** — the folder from which Claude Code was launched. Using it here means the `.md` file is always created next to the project Claude is working on, not inside the MCP server folder.\n\n`path.join()` safely concatenates the directory and filename with the correct separator for whatever OS is running the server."
+    },
+    {
+      "file": "index.js",
+      "line": 311,
+      "title": "15. Helper functions",
+      "description": "Two small helpers are shared across the `html_to_markdown` handler:\n\n- **`stripTags(html)`** — removes all HTML tags with `/<[^>]+>/g`, leaving only text content. Used when extracting text from inside a converted element.\n- **`unescapeHtml(str)`** — reverses HTML entity encoding so the Markdown output contains real characters like `&`, `<`, `>` rather than their entity equivalents.\n\nFunction declarations (using the `function` keyword) are hoisted to the top of the module, so they can be defined *after* the code that uses them."
+    },
+    {
+      "file": "index.js",
+      "line": 333,
+      "title": "16. Connecting the transport",
+      "description": "The final two lines wire everything together:\n\n```js\nconst transport = new StdioServerTransport();\nawait server.connect(transport);\n```\n\n`StdioServerTransport` tells the server to read MCP messages from **stdin** and write responses to **stdout**. This is the standard way Claude Code launches and communicates with local MCP servers — it runs `node index.js` as a subprocess and pipes messages through.\n\nAfter `connect()` resolves, the server is live and listening. Claude can now discover and call any of the three registered tools."
+    }
+  ]
+}

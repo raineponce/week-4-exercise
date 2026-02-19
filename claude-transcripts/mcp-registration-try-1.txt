@@ -1,0 +1,115 @@
+
+╭─── Claude Code v2.1.47 ──────────────────────────────────────────────────────╮
+│                                                    │ Tips for getting        │
+│                 Welcome back Raine!                │ started                 │
+│                                                    │ Run /init to create a … │
+│                                                    │ ─────────────────────── │
+│                          ✻                         │ Recent activity         │
+│                          |                         │ No recent activity      │
+│                         ▟█▙                        │                         │
+│                       ▐▛███▜▌                      │                         │
+│                      ▝▜█████▛▘                     │                         │
+│                        ▘▘ ▝▝                       │                         │
+│                                                    │                         │
+│              Sonnet 4.6 · Claude Pro               │                         │
+│ ~\Desktop\school\2026 Spring\DIG4503 - low no cod… │                         │
+╰──────────────────────────────────────────────────────────────────────────────╯
+
+❯ /mcp 
+  ⎿  No MCP servers configured. Please run /doctor if this is unexpected.
+     Otherwise, run claude mcp --help or visit
+     https://code.claude.com/docs/en/mcp to learn more.
+
+❯ claude mcp --help 
+
+● Read 1 file (ctrl+o to expand)
+
+● Bash(claude mcp --help 2>&1)
+  ⎿  Usage: claude mcp [options] [command]
+
+     Configure and manage MCP servers
+     … +24 lines (ctrl+o to expand)
+
+● Read 2 files (ctrl+o to expand)
+
+● You have a working MCP server (my-mcp-server) that just needs to be registered
+   with Claude Code. Here's what to do:
+
+  Register your server with this command:
+
+  claude mcp add my-mcp-server -- node "C:/Users/Raine/Desktop/school/2026 
+  Spring/DIG4503 - low no code dev/week-4-exercise/my-mcp-server/index.js"
+
+  Or, since you're already in the project directory:
+
+  claude mcp add my-mcp-server -- node index.js
+
+  Then verify it's registered:
+
+  claude mcp list
+
+  To confirm it's working, run /mcp again — you should see my-mcp-server listed
+  with your three tools:
+  - format_for_html
+  - slugify_title
+  - html_to_markdown
+
+  Note: Using the full absolute path is more reliable since Claude Code may be 
+  launched from different directories.
+
+
+❯ `claude mcp add my-mcp-server -- node index.js` 
+
+● Bash(cd "/c/Users/Raine/Desktop/school/2026 Spring/DIG4503 - low no code
+      dev/week-4-exercise/my-mcp-server" && claude mcp add my-mcp-server -- node
+       index.js 2>&1)
+  ⎿  Added stdio MCP server my-mcp-server with command: node index.js to lo
+     cal config
+     File modified: C:\Users\Raine\.claude.json [project: C:\Users\Raine\De
+     … +2 lines (ctrl+o to expand)
+
+● It worked. The server was registered to your local config.
+
+  Now run /mcp to confirm it shows up, or verify with:
+
+  claude mcp list
+
+  Heads up: Since it was registered with node index.js (a relative path), it 
+  will only work when Claude Code is launched from the my-mcp-server directory. 
+  If you want it available everywhere, re-add it with the full absolute path:
+  claude mcp remove my-mcp-server
+  claude mcp add my-mcp-server -- node "C:/Users/Raine/Desktop/school/2026 
+  Spring/DIG4503 - low no code dev/week-4-exercise/my-mcp-server/index.js"
+
+
+❯ /mcp 
+  ⎿  No MCP servers configured. Please run /doctor if this is unexpected.
+     Otherwise, run claude mcp --help or visit
+     https://code.claude.com/docs/en/mcp to learn more.
+
+❯ claude mcp list 
+
+● Bash(claude mcp list 2>&1)
+  ⎿  (No output)
+
+● Read 1 file (ctrl+o to expand)
+
+● The server is correctly saved in your config. I can see it in .claude.json:
+
+  "my-mcp-server": {
+    "type": "stdio",
+    "command": "node",
+    "args": ["index.js"],
+    "env": {}
+  }
+
+  The problem is that /mcp shows servers that are currently connected — it
+  doesn't pick up new registrations mid-session. You need to restart Claude Code
+   for it to load the new server.
+
+  Close this terminal/session and reopen Claude Code from the my-mcp-server
+  directory. After restarting, run /mcp again and you should see my-mcp-server
+  listed.
+
+  Also note: hasTrustDialogAccepted is false for this project — Claude Code may 
+  prompt you to approve the MCP server on first load. Accept it when prompted.
